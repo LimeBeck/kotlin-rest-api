@@ -15,6 +15,9 @@ class NewsRepository : INewsRepository<News> {
     override fun findById(id: Int): News = transaction { findNews(byId(id)) }
     override fun findById(id: String): News = transaction { findNews(byId(id.toInt())) }
 
+    fun findByCategoryId(id: String): News = transaction { findNews(byCategoryId(id.toInt())) }
+    fun findByCategoryId(id: Int): News = transaction { findNews(byCategoryId(id)) }
+
     private fun findNews(where: Op<Boolean>) = transaction {
         NewsTable.select(where)
             .checkNull()
@@ -22,6 +25,7 @@ class NewsRepository : INewsRepository<News> {
     }
 
     private fun byId(id: Int): Op<Boolean> = transaction { NewsTable.id eq id }
+    private fun byCategoryId(id: Int): Op<Boolean> = transaction { NewsTable.category_id eq id }
 
     override fun insert(data: News) = transaction {
         data.id = NewsTable.insert {
@@ -33,11 +37,11 @@ class NewsRepository : INewsRepository<News> {
     }
 
     override fun deleteById(id: Int) = transaction {
-        CategoryTable.deleteWhere { NewsTable.id eq id }
+        NewsTable.deleteWhere { NewsTable.id eq id }
     }
 
     override fun deleteById(id: String) = transaction {
-        CategoryTable.deleteWhere { NewsTable.id eq id.toInt() }
+        NewsTable.deleteWhere { NewsTable.id eq id.toInt() }
     }
 
     override fun update(id: Int, data: News) = transaction {
@@ -117,7 +121,6 @@ class CategoryRepository : INewsRepository<Category> {
 }
 
 fun readProperty(instance: Any, propertyName: String): Column<Any> {
-
     val property = instance::class.members.first { it.name == propertyName }
     return property.call(instance) as Column<Any>
 }

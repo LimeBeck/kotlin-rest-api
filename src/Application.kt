@@ -1,20 +1,23 @@
 package com.restapiexaple
 
 import com.restapiexaple.data.CategoryRepository
+import com.restapiexaple.data.NewsRepository
 import com.restapiexaple.data.SetupDB
 import com.restapiexaple.models.Category
+import com.restapiexaple.models.DateTimeSerializer
+import com.restapiexaple.models.News
 import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.request.*
 import io.ktor.routing.*
 import io.ktor.http.*
 import io.ktor.locations.*
-import io.ktor.sessions.*
 import io.ktor.features.*
 import org.slf4j.event.*
 import io.ktor.gson.*
 import io.ktor.util.pipeline.PipelineContext
 import java.lang.Exception
+import org.joda.time.DateTime
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
@@ -52,61 +55,96 @@ fun Application.module(testing: Boolean = false) {
     install(ContentNegotiation) {
         gson {
             setPrettyPrinting()
+            setDateFormat("yyyy-MM-dd'T'HH:mm:ssZ")
+            registerTypeAdapter(DateTime::class.java, DateTimeSerializer())
         }
     }
 
     routing {
         get("/check") {
-            call.respond(hashMapOf("code" to "0"))
+            call.respond(hashMapOf("code" to 0, "status" to "ok"))
         }
-        route("/categories") {
-            val repo = CategoryRepository()
+        route("/news") {
+            val repo = NewsRepository()
             get("/") {
                 errorAware {
                     call.respond(repo.findAll())
                 }
-
+            }
+            get("/details") {
+                errorAware {
+                    val id = call.request.queryParameters["id"] ?: throw IllegalArgumentException("id must be not null")
+                    call.respond(repo.findById(id))
+                }
+            }
+            delete("/details") {
+                errorAware {
+                    val id = call.request.queryParameters["id"] ?: throw IllegalArgumentException("id must be not null")
+                    call.respond(repo.deleteById(id))
+                }
             }
 
             post("/") {
                 errorAware {
-                    val receive = call.receive<Category>()
+                    val receive = call.receive<News>()
                     println("Received Post Request: $receive")
                     repo.insert(receive)
                     call.respond(receive)
                 }
             }
 
-            get("/{id}") {
-                errorAware {
-                    val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
-                    call.respond(repo.findById(id))
-                }
-            }
+            route("/categories") {
+                val repo = CategoryRepository()
+                get("/") {
+                    errorAware {
+                        call.respond(repo.findAll())
+                    }
 
-            put("/{id}") {
-                errorAware {
-                    val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
-                    val receive = call.receive<Category>()
-                    call.respond(repo.update(id.toInt(), receive))
                 }
-            }
 
-            patch("/{id}") {
-                errorAware {
-                    val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
-                    val receive = call.receive<Map<String, String>>()
-                    call.respond(repo.update(id.toInt(), receive))
+                post("/") {
+                    errorAware {
+                        val receive = call.receive<Category>()
+                        println("Received Post Request: $receive")
+                        repo.insert(receive)
+                        call.respond(receive)
+                    }
                 }
-            }
 
-            delete("/{id}") {
-                errorAware {
-                    val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
-                    call.respond(HttpStatusCode.NoContent, mapOf("success" to repo.deleteById(id)))
+
+
+                get("/{id}") {
+                    errorAware {
+                        val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
+                        call.respond(repo.findById(id))
+                    }
+                }
+
+                put("/{id}") {
+                    errorAware {
+                        val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
+                        val receive = call.receive<Category>()
+                        call.respond(repo.update(id.toInt(), receive))
+                    }
+                }
+
+                patch("/{id}") {
+                    errorAware {
+                        val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
+                        val receive = call.receive<Map<String, String>>()
+                        call.respond(repo.update(id.toInt(), receive))
+                    }
+                }
+
+                delete("/{id}") {
+                    errorAware {
+                        val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
+                        call.respond(HttpStatusCode.NoContent, mapOf("success" to repo.deleteById(id)))
+                    }
                 }
             }
         }
+
 
         install(StatusPages) {
             exception<AuthenticationException> { cause ->
