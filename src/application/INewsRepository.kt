@@ -8,5 +8,6 @@ interface INewsRepository<T> {
     fun deleteById(id: Int): Int
     fun deleteById(id: String): Int
     fun insert(data: T)
-    fun update(id: Int, data: T)
+    fun update(id: Int, data: T): T
+    fun update(id: Int, data: Map<String, String>): T
 }

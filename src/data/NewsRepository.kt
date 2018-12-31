@@ -40,13 +40,24 @@ class NewsRepository : INewsRepository<News> {
         CategoryTable.deleteWhere { NewsTable.id eq id.toInt() }
     }
 
-    override fun update(id: Int, data: News) {
+    override fun update(id: Int, data: News) = transaction {
+        findNews(byId(id))
     }
+
+    override fun update(id: Int, data: Map<String, String>) = transaction {
+        findNews(byId(id))
+    }
+//
 
     private fun Query.checkNull(): ResultRow = firstOrNull() ?: throw Exception("News not found")
 }
 
 class CategoryRepository : INewsRepository<Category> {
+    //    ToDo: get this values from model class, check nullable from it
+    private val fields: Map<String, Boolean> = mapOf(
+        "name" to true
+    )
+
     override fun findAll() = transaction { CategoryTable.selectAll().map { x -> x.toCategory() } }
 
     override fun findById(id: Int): Category = transaction { findCategory(byId(id)) }
@@ -75,17 +86,44 @@ class CategoryRepository : INewsRepository<Category> {
         deleteById(id.toInt())
     }
 
-    override fun update(id: Int, data: Category) {
-//        CategoryTable.select(byId(id)).checkNull()
-//        CategoryTable.update ({ byId(id) }){
-//            with(SqlExpressionBuilder){
-//                it.update(CategoryTable.name, data.name)
-//            }
-//        }
-//        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override fun update(id: Int, data: Category) = transaction {
+        CategoryTable.select(byId(id)).checkNull()
+        CategoryTable.update({ byId(id) }) {
+            it[name] = data.name
+        }
+//        data.id = id
+        findCategory(byId(id))
+    }
+
+    override fun update(id: Int, data: Map<String, String>) = transaction {
+        CategoryTable.select(byId(id)).checkNull()
+        for (field in fields) {
+            if (!data.containsKey(field.key) && field.value) {
+                throw IllegalArgumentException("Field <${field.key}> must be provided in request")
+            }
+            if (data.containsKey(field.key)) {
+                CategoryTable.update({ byId(id) }) {
+                    checkProperty(CategoryTable, field.key)
+                    val column = readProperty(CategoryTable, field.key)
+                    it[column] = data[field.key] ?:
+                            throw IllegalArgumentException("${field.key} must be provided in request")
+                }
+            }
+        }
+        findCategory(byId(id))
     }
 
     private fun Query.checkNull(): ResultRow = firstOrNull() ?: throw IllegalArgumentException("Categories not found")
 }
 
+fun readProperty(instance: Any, propertyName: String): Column<Any> {
 
+    val property = instance::class.members.first { it.name == propertyName }
+    return property.call(instance) as Column<Any>
+}
+
+fun checkProperty(instance: Any, propertyName: String) {
+    if (instance::class.members.none { it.name == propertyName }) {
+        throw IllegalArgumentException("$propertyName not in class members")
+    }
+}

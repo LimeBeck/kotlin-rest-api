@@ -59,17 +59,17 @@ fun Application.module(testing: Boolean = false) {
         get("/check") {
             call.respond(hashMapOf("code" to "0"))
         }
-        route("/categories"){
+        route("/categories") {
             val repo = CategoryRepository()
-            get("/"){
-                errorAware{
+            get("/") {
+                errorAware {
                     call.respond(repo.findAll())
                 }
 
             }
 
-            post("/"){
-                errorAware{
+            post("/") {
+                errorAware {
                     val receive = call.receive<Category>()
                     println("Received Post Request: $receive")
                     repo.insert(receive)
@@ -77,38 +77,35 @@ fun Application.module(testing: Boolean = false) {
                 }
             }
 
-            get("/{id}"){
+            get("/{id}") {
                 errorAware {
                     val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
                     call.respond(repo.findById(id))
                 }
             }
 
-            patch("/{id}"){
+            put("/{id}") {
                 errorAware {
                     val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
-                    call.respond(repo.findById(id))
+                    val receive = call.receive<Category>()
+                    call.respond(repo.update(id.toInt(), receive))
                 }
             }
 
-            delete("/{id}"){
+            patch("/{id}") {
                 errorAware {
                     val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
-                    call.respond(mapOf("success" to repo.deleteById(id)))
+                    val receive = call.receive<Map<String, String>>()
+                    call.respond(repo.update(id.toInt(), receive))
                 }
             }
-        }
 
-
-        get<MyLocation> {
-            call.respondText("Location: name=${it.name}, arg1=${it.arg1}, arg2=${it.arg2}")
-        }
-        // Register nested routes
-        get<Type.Edit> {
-            call.respondText("Inside $it")
-        }
-        get<Type.List> {
-            call.respondText("Inside $it")
+            delete("/{id}") {
+                errorAware {
+                    val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
+                    call.respond(HttpStatusCode.NoContent, mapOf("success" to repo.deleteById(id)))
+                }
+            }
         }
 
         install(StatusPages) {
@@ -127,19 +124,6 @@ fun Application.module(testing: Boolean = false) {
     }
 }
 
-@KtorExperimentalLocationsAPI
-@Location("/location/{name}")
-class MyLocation(val name: String, val arg1: Int = 42, val arg2: String = "default")
-
-@KtorExperimentalLocationsAPI
-@Location("/type/{name}") data class Type(val name: String) {
-    @Location("/edit")
-    data class Edit(val type: Type)
-
-    @Location("/list/{page}")
-    data class List(val type: Type, val page: Int)
-}
-
 private suspend fun <R> PipelineContext<*, ApplicationCall>.errorAware(block: suspend () -> R): R? {
     return try {
         block()
@@ -152,8 +136,6 @@ private suspend fun <R> PipelineContext<*, ApplicationCall>.errorAware(block: su
         null
     }
 }
-
-data class MySession(val count: Int = 0)
 
 class AuthenticationException : RuntimeException()
 class AuthorizationException : RuntimeException()
