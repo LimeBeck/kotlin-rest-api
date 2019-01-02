@@ -10,6 +10,15 @@ import org.jetbrains.exposed.sql.transactions.transaction
 
 
 class NewsRepository : INewsRepository<News> {
+    //    ToDo: get this values from model class, check nullable from it
+    private val fields: Map<String, Boolean> = mapOf(
+        "title" to true,
+        "date" to true,
+        "category_id" to true,
+        "shortDescription" to true,
+        "fullDescription" to true
+    )
+
     override fun findAll() = transaction { NewsTable.selectAll().map { x -> x.toNews() } }
 
     override fun findById(id: Int): News = transaction { findNews(byId(id)) }
@@ -31,6 +40,7 @@ class NewsRepository : INewsRepository<News> {
         data.id = NewsTable.insert {
             it[title] = data.title
             it[date] = data.date
+            it[category_id] = data.category_id
             it[shortDescription] = data.shortDescription
             it[fullDescription] = data.fullDescription
         } get NewsTable.id
@@ -45,10 +55,34 @@ class NewsRepository : INewsRepository<News> {
     }
 
     override fun update(id: Int, data: News) = transaction {
+        NewsTable.select(byId(id)).checkNull()
+        NewsTable.update({ byId(id) }) {
+            it[title] = data.title
+            it[category_id] = data.category_id
+            it[shortDescription] = data.shortDescription
+            it[fullDescription] = data.fullDescription
+            it[date] = data.date
+        }
         findNews(byId(id))
     }
 
     override fun update(id: Int, data: Map<String, String>) = transaction {
+        NewsTable.select(byId(id)).checkNull()
+        for (field in fields) {
+//            Uhm, don`t think that was really needful.
+//            This is a particular update, so this fields we not check
+//            if (!data.containsKey(field.key) && field.value) {
+//                throw IllegalArgumentException("Field <${field.key}> must be provided in request")
+//            }
+            if (data.containsKey(field.key)) {
+                NewsTable.update({ byId(id) }) {
+                    checkProperty(NewsTable, field.key)
+                    val column = readProperty(NewsTable, field.key)
+                    it[column] = data[field.key] ?:
+                            throw IllegalArgumentException("${field.key} must be provided in request")
+                }
+            }
+        }
         findNews(byId(id))
     }
 //
@@ -102,9 +136,11 @@ class CategoryRepository : INewsRepository<Category> {
     override fun update(id: Int, data: Map<String, String>) = transaction {
         CategoryTable.select(byId(id)).checkNull()
         for (field in fields) {
-            if (!data.containsKey(field.key) && field.value) {
-                throw IllegalArgumentException("Field <${field.key}> must be provided in request")
-            }
+//            Uhm, don`t think that was really needful.
+//            This is a particular update, so this fields we not check
+//            if (!data.containsKey(field.key) && field.value) {
+//                throw IllegalArgumentException("Field <${field.key}> must be provided in request")
+//            }
             if (data.containsKey(field.key)) {
                 CategoryTable.update({ byId(id) }) {
                     checkProperty(CategoryTable, field.key)

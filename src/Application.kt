@@ -66,7 +66,7 @@ fun Application.module(testing: Boolean = false) {
         }
         route("/news") {
             val repo = NewsRepository()
-            get("/") {
+            get("") {
                 errorAware {
                     call.respond(repo.findAll())
                 }
@@ -77,14 +77,28 @@ fun Application.module(testing: Boolean = false) {
                     call.respond(repo.findById(id))
                 }
             }
+            put("/details") {
+                errorAware {
+                    val id = call.request.queryParameters["id"] ?: throw IllegalArgumentException("id must be not null")
+                    val receive = call.receive<News>()
+                    call.respond(repo.update(id.toInt(), receive))
+                }
+            }
+            patch("/details") {
+                errorAware {
+                    val id = call.request.queryParameters["id"] ?: throw IllegalArgumentException("id must be not null")
+                    val receive = call.receive<Map<String, String>>()
+                    call.respond(repo.update(id.toInt(), receive))
+                }
+            }
             delete("/details") {
                 errorAware {
                     val id = call.request.queryParameters["id"] ?: throw IllegalArgumentException("id must be not null")
-                    call.respond(repo.deleteById(id))
+                    call.respond(HttpStatusCode.NoContent, repo.deleteById(id))
                 }
             }
 
-            post("/") {
+            post("") {
                 errorAware {
                     val receive = call.receive<News>()
                     println("Received Post Request: $receive")
@@ -120,6 +134,14 @@ fun Application.module(testing: Boolean = false) {
                     }
                 }
 
+                get("/{id}/news") {
+                    errorAware {
+                        val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
+                        call.respond(NewsRepository().findByCategoryId(id))
+                    }
+                }
+
+
                 put("/{id}") {
                     errorAware {
                         val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
@@ -154,10 +176,6 @@ fun Application.module(testing: Boolean = false) {
                 call.respond(HttpStatusCode.Forbidden)
             }
 
-        }
-
-        get("/json/gson") {
-            call.respond(mapOf("hello" to "world"))
         }
     }
 }
