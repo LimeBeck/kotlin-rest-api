@@ -60,7 +60,7 @@ fun Application.module(testing: Boolean = false) {
 
     install(ContentNegotiation) {
         gson {
-            setPrettyPrinting()
+            //            setPrettyPrinting()
             setDateFormat("yyyy-MM-dd'T'HH:mm:ssZ")
             registerTypeAdapter(DateTime::class.java, DateTimeSerializer())
             registerTypeAdapter(object : TypeToken<News>() {}.type, NewsListSerializer())
@@ -151,11 +151,18 @@ fun Application.module(testing: Boolean = false) {
                     val receive = call.receive<News>()
                     println("Received Post Request: $receive")
                     repo.insert(receive)
-                    call.respond(
-                        makeResponse(
-                            data = receive,
-                            elemName = "news"
-                        )
+                    val gson = GsonBuilder()
+                        .setPrettyPrinting()
+                        .registerTypeAdapter(DateTime::class.java, DateTimeSerializer())
+                        .create()
+                    call.respondText(
+                        gson.toJson(
+                            makeResponse(
+                                data = receive,
+                                elemName = "news"
+                            )
+                        ),
+                        ContentType.parse("applicattion/json")
                     )
                 }
             }

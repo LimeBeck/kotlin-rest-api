@@ -40,4 +40,5 @@ dependencies {
     compile "io.ktor:ktor-server-host-common:$ktor_version"
     compile "io.ktor:ktor-gson:$ktor_version"
     testCompile "io.ktor:ktor-server-tests:$ktor_version"
+    testCompile "org.junit.jupiter:junit-jupiter-api:5.3.2"
 }
