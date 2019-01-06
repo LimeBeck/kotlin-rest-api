@@ -24,8 +24,13 @@ class NewsRepository : INewsRepository<News> {
     override fun findById(id: Int): News = transaction { findNews(byId(id)) }
     override fun findById(id: String): News = transaction { findNews(byId(id.toInt())) }
 
-    fun findByCategoryId(id: String): News = transaction { findNews(byCategoryId(id.toInt())) }
-    fun findByCategoryId(id: Int): News = transaction { findNews(byCategoryId(id)) }
+    fun findByCategoryId(id: String, page: String = "1") =
+        transaction { findByCategoryId(id = id.toInt(), page = page.toInt()) }
+
+    fun findByCategoryId(id: Int, page: Int = 1) = transaction {
+        val offset = (page - 1) * 10
+        NewsTable.select(NewsTable.category_id eq id).limit(10, offset = offset).map { x -> x.toNews() }
+    }
 
     private fun findNews(where: Op<Boolean>) = transaction {
         NewsTable.select(where)
@@ -34,7 +39,6 @@ class NewsRepository : INewsRepository<News> {
     }
 
     private fun byId(id: Int): Op<Boolean> = transaction { NewsTable.id eq id }
-    private fun byCategoryId(id: Int): Op<Boolean> = transaction { NewsTable.category_id eq id }
 
     override fun insert(data: News) = transaction {
         data.id = NewsTable.insert {

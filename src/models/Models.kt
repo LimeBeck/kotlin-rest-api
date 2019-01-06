@@ -19,6 +19,21 @@ data class News(var id: Int?,
                 val fullDescription: String = "<b>fullDescription</b>"
 )
 
+class NewsListSerializer : JsonSerializer<News> {
+    override fun serialize(src: News, typeOfSrc: Type?, context: JsonSerializationContext?): JsonElement {
+        val jsonNew = JsonObject()
+
+        jsonNew.addProperty("id", src.id)
+        jsonNew.addProperty("title", src.title)
+        if (context != null) {
+            jsonNew.add("date", context.serialize(src.date))
+        }
+        jsonNew.addProperty("shortDescription", src.shortDescription)
+
+        return jsonNew
+    }
+}
+
 class DateTimeSerializer : JsonSerializer<DateTime>, JsonDeserializer<DateTime> {
     override fun serialize(src: DateTime?, typeOfSrc: Type?, context: JsonSerializationContext?): JsonElement {
         return JsonPrimitive(src.toString())

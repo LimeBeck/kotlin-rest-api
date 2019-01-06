@@ -1,11 +1,13 @@
 package com.restapiexaple
 
+import com.google.gson.reflect.TypeToken
 import com.restapiexaple.data.CategoryRepository
 import com.restapiexaple.data.NewsRepository
 import com.restapiexaple.data.SetupDB
 import com.restapiexaple.models.Category
 import com.restapiexaple.models.DateTimeSerializer
 import com.restapiexaple.models.News
+import com.restapiexaple.models.NewsListSerializer
 import io.ktor.application.*
 import io.ktor.response.*
 import io.ktor.request.*
@@ -18,6 +20,10 @@ import io.ktor.gson.*
 import io.ktor.util.pipeline.PipelineContext
 import java.lang.Exception
 import org.joda.time.DateTime
+import java.util.ArrayList
+import com.google.gson.GsonBuilder
+import com.google.gson.Gson
+
 
 fun main(args: Array<String>): Unit = io.ktor.server.netty.EngineMain.main(args)
 
@@ -57,44 +63,86 @@ fun Application.module(testing: Boolean = false) {
             setPrettyPrinting()
             setDateFormat("yyyy-MM-dd'T'HH:mm:ssZ")
             registerTypeAdapter(DateTime::class.java, DateTimeSerializer())
+            registerTypeAdapter(object : TypeToken<News>() {}.type, NewsListSerializer())
         }
     }
 
     routing {
         get("/check") {
-            call.respond(hashMapOf("code" to 0, "status" to "ok"))
+            call.respond(
+                makeResponse(
+                    data = "ok",
+                    code = 0,
+                    elemName = "status"
+                )
+            )
         }
         route("/news") {
             val repo = NewsRepository()
             get("") {
                 errorAware {
-                    call.respond(repo.findAll())
+                    call.respond(
+                        makeResponse(
+                            data = repo.findAll(),
+                            elemName = "list"
+                        )
+                    )
                 }
             }
             get("/details") {
                 errorAware {
                     val id = call.request.queryParameters["id"] ?: throw IllegalArgumentException("id must be not null")
-                    call.respond(repo.findById(id))
+                    errorAware {
+                        val gson = GsonBuilder()
+                            .setPrettyPrinting()
+                            .registerTypeAdapter(DateTime::class.java, DateTimeSerializer())
+                            .create()
+                        call.respondText(
+                            gson.toJson(
+                                makeResponse(
+                                    data = repo.findById(id),
+                                    elemName = "news"
+                                )
+                            ),
+                            ContentType.parse("applicattion/json")
+                        )
+                    }
                 }
             }
             put("/details") {
                 errorAware {
                     val id = call.request.queryParameters["id"] ?: throw IllegalArgumentException("id must be not null")
                     val receive = call.receive<News>()
-                    call.respond(repo.update(id.toInt(), receive))
+                    call.respond(
+                        makeResponse(
+                            data = repo.update(id.toInt(), receive),
+                            elemName = "news"
+                        )
+                    )
                 }
             }
             patch("/details") {
                 errorAware {
                     val id = call.request.queryParameters["id"] ?: throw IllegalArgumentException("id must be not null")
                     val receive = call.receive<Map<String, String>>()
-                    call.respond(repo.update(id.toInt(), receive))
+                    call.respond(
+                        makeResponse(
+                            data = repo.update(id.toInt(), receive),
+                            elemName = "news"
+                        )
+                    )
                 }
             }
             delete("/details") {
                 errorAware {
                     val id = call.request.queryParameters["id"] ?: throw IllegalArgumentException("id must be not null")
-                    call.respond(HttpStatusCode.NoContent, repo.deleteById(id))
+                    call.respond(
+                        makeResponse(
+                            data = repo.deleteById(id),
+                            elemName = "deleted",
+                            code = 1
+                        )
+                    )
                 }
             }
 
@@ -103,7 +151,12 @@ fun Application.module(testing: Boolean = false) {
                     val receive = call.receive<News>()
                     println("Received Post Request: $receive")
                     repo.insert(receive)
-                    call.respond(receive)
+                    call.respond(
+                        makeResponse(
+                            data = receive,
+                            elemName = "news"
+                        )
+                    )
                 }
             }
 
@@ -111,9 +164,13 @@ fun Application.module(testing: Boolean = false) {
                 val repo = CategoryRepository()
                 get("/") {
                     errorAware {
-                        call.respond(repo.findAll())
+                        call.respond(
+                            makeResponse(
+                                data = repo.findAll(),
+                                elemName = "list"
+                            )
+                        )
                     }
-
                 }
 
                 post("/") {
@@ -121,32 +178,50 @@ fun Application.module(testing: Boolean = false) {
                         val receive = call.receive<Category>()
                         println("Received Post Request: $receive")
                         repo.insert(receive)
-                        call.respond(receive)
+                        call.respond(
+                            makeResponse(
+                                data = receive,
+                                elemName = "category"
+                            )
+                        )
                     }
                 }
-
-
 
                 get("/{id}") {
                     errorAware {
                         val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
-                        call.respond(repo.findById(id))
+                        call.respond(
+                            makeResponse(
+                                data = repo.findById(id),
+                                elemName = "category"
+                            )
+                        )
                     }
                 }
 
                 get("/{id}/news") {
                     errorAware {
                         val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
-                        call.respond(NewsRepository().findByCategoryId(id))
+                        val page = call.request.queryParameters["page"] ?: "1"
+                        call.respond(
+                            makeResponse(
+                                data = NewsRepository().findByCategoryId(id, page),
+                                elemName = "list"
+                            )
+                        )
                     }
                 }
-
 
                 put("/{id}") {
                     errorAware {
                         val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
                         val receive = call.receive<Category>()
-                        call.respond(repo.update(id.toInt(), receive))
+                        call.respond(
+                            makeResponse(
+                                data = repo.update(id.toInt(), receive),
+                                elemName = "category"
+                            )
+                        )
                     }
                 }
 
@@ -154,26 +229,39 @@ fun Application.module(testing: Boolean = false) {
                     errorAware {
                         val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
                         val receive = call.receive<Map<String, String>>()
-                        call.respond(repo.update(id.toInt(), receive))
+                        call.respond(
+                            makeResponse(
+                                data = repo.update(id.toInt(), receive),
+                                elemName = "category"
+                            )
+                        )
                     }
                 }
 
                 delete("/{id}") {
                     errorAware {
                         val id = call.parameters["id"] ?: throw IllegalArgumentException("Parameter not found")
-                        call.respond(HttpStatusCode.NoContent, mapOf("success" to repo.deleteById(id)))
+                        call.respond(
+                            makeResponse(
+                                data = repo.deleteById(id),
+                                elemName = "deleted",
+                                code = 1
+                            )
+                        )
                     }
                 }
             }
         }
 
-
         install(StatusPages) {
-            exception<AuthenticationException> { cause ->
-                call.respond(HttpStatusCode.Unauthorized)
-            }
-            exception<AuthorizationException> { cause ->
-                call.respond(HttpStatusCode.Forbidden)
+            status(HttpStatusCode.NotFound) {
+                call.respond(
+                    makeResponse(
+                        data = "not found",
+                        code = 4,
+                        elemName = "error"
+                    )
+                )
             }
 
         }
@@ -184,15 +272,17 @@ private suspend fun <R> PipelineContext<*, ApplicationCall>.errorAware(block: su
     return try {
         block()
     } catch (e: Exception) {
-        call.respondText(
-            """{"error":"${e.localizedMessage}"}""",
-            ContentType.parse("applicattion/json")
-//            HttpStatusCode.InternalServerError
+        call.respond(
+            makeResponse(
+                data = e.localizedMessage,
+                code = 5,
+                elemName = "error"
+            )
         )
         null
     }
 }
 
-class AuthenticationException : RuntimeException()
-class AuthorizationException : RuntimeException()
-
+fun makeResponse(data: Any, code: Int = 0, elemName: String = "data"): Map<String, Any> {
+    return mapOf("code" to code, elemName to data)
+}
