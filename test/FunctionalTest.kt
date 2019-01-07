@@ -5,12 +5,8 @@ import com.restapiexaple.data.CategoryRepository
 import com.restapiexaple.data.NewsRepository
 import com.restapiexaple.data.SetupDB
 import com.restapiexaple.models.Category
-import com.restapiexaple.models.DateTimeSerializer
 import com.restapiexaple.models.News
-import io.ktor.http.*
 import kotlin.test.*
-import io.ktor.server.testing.*
-import org.joda.time.DateTime
 import org.junit.FixMethodOrder
 import org.junit.jupiter.api.*
 import org.junit.jupiter.api.Test
